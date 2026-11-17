@@ -78,3 +78,7 @@ Every write is a field-level patch, so logging on two devices at the same time i
 backup from Settings about once a month; the file restores everything on any copy of Tare.
 
 Design notes and the storage/sync rules live in the session's design documents (spec + addendum).
+
+## License
+
+MIT — see [LICENSE](LICENSE).

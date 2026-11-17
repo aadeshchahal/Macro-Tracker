@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tare seed</title></head>
+<body>
+<p>Seeding sample data into local mode…</p>
+<script>
+(async function () {
+  var q = new URLSearchParams(location.search);
+  var r = await fetch('seed.json', { cache: 'no-store' });
+  var text = await r.text();
+  localStorage.setItem('tare.docs', text);
+  localStorage.setItem('tare.graphRange', q.get('range') || '1M');
+  var to = '/' + (q.get('theme') ? '?theme=' + q.get('theme') : '') + (q.get('screen') ? '#' + q.get('screen') : '');
+  location.replace(to);
+})();
+</script>
+</body></html>

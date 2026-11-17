@@ -1,0 +1,45 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Tare width probe</title>
+<style>body{margin:0;background:#888;font:12px monospace} iframe{border:0;display:block;background:#fff} pre{white-space:pre-wrap;color:#fff;padding:8px}</style>
+</head>
+<body>
+<iframe id="f" width="375" height="1300"></iframe>
+<pre id="report">waiting…</pre>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var w = +(q.get('w') || 375);
+  var f = document.getElementById('f');
+  f.width = w;
+  if (q.get('clear')) { try { localStorage.removeItem('tare.docs'); } catch (e) { /* ignore */ } f.src = '/'; }
+  else f.src = '/tests/seed.html?' + (q.get('seed') || 'range=1M');
+  var tries = 0;
+  function check() {
+    tries++;
+    var d;
+    try { d = f.contentDocument; } catch (e) { d = null; }
+    var ready = d && d.location.pathname === '/' && d.querySelector('#entries, #food-list, #stats');
+    if (!ready) { if (tries < 60) return setTimeout(check, 250); document.getElementById('report').textContent = 'app did not load in iframe'; return; }
+    setTimeout(function () {
+      var win = f.contentWindow;
+      var out = ['innerWidth=' + win.innerWidth, 'docScrollWidth=' + d.documentElement.scrollWidth, 'bodyScrollWidth=' + d.body.scrollWidth];
+      var bad = [];
+      d.querySelectorAll('body *').forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        if (r.width === 0) return;
+        if (r.right > win.innerWidth + 1) {
+          var p = el;
+          var inScroll = false;
+          while (p && p !== d.body) { var cs = win.getComputedStyle(p); if (/(auto|scroll)/.test(cs.overflowX) && p !== el) { inScroll = true; break; } p = p.parentElement; }
+          if (!inScroll) bad.push(el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.split(' ').join('.') : '') + ' right=' + Math.round(r.right) + ' w=' + Math.round(r.width));
+        }
+      });
+      out.push('overflowing (not inside a scroll container): ' + bad.length);
+      out = out.concat(bad.slice(0, 25));
+      document.getElementById('report').textContent = out.join('\n');
+    }, 800);
+  }
+  f.addEventListener('load', function () { setTimeout(check, 300); });
+})();
+</script>
+</body></html>

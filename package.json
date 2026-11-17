@@ -1,0 +1,11 @@
+{
+  "name": "tare",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tare — a food-scale ledger for daily calories, macros and body weight (vanilla HTML/CSS/JS, published as a private Claude artifact).",
+  "scripts": {
+    "test": "node --test tests/core.test.js tests/store.test.js tests/dbstore.test.js tests/review-fixes.test.js tests/pieces.test.js tests/future-days.test.js",
+    "build": "node tools/build.js",
+    "serve": "python -m http.server 8765 --bind 127.0.0.1"
+  }
+}

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tare charts smoke</title>
+<style>
+  :root {
+    --surface: #FFFFFF; --ground: #F4F5F2;
+    --ink: #15171A; --ink-2: #585D5B; --muted: #8B908D; --hairline: #E1E4E0; --axis: #C5C9C4;
+    --accent: #2A78D6; --s2: #EB6834; --s3: #1BAF7A; --good: #0CA30C; --crit: #D03B3B;
+    --font-ui: 'IBM Plex Sans', system-ui, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface: #1B1D20; --ground: #121416;
+      --ink: #F2F3F1; --ink-2: #B9BEBB; --muted: #8B908D; --hairline: #2C3033; --axis: #3D4246;
+      --accent: #6AA3E8; --s2: #F08A5E; --s3: #3FC79A; --good: #3FC03F; --crit: #E8605F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface: #1B1D20; --ground: #121416;
+    --ink: #F2F3F1; --ink-2: #B9BEBB; --muted: #8B908D; --hairline: #2C3033; --axis: #3D4246;
+    --accent: #6AA3E8; --s2: #F08A5E; --s3: #3FC79A; --good: #3FC03F; --crit: #E8605F;
+  }
+  body { margin: 0; padding: 16px; background: var(--ground); color: var(--ink); font-family: var(--font-ui); }
+  .card { background: var(--surface); border: 1px solid var(--hairline); border-radius: 8px; padding: 12px; margin: 0 0 16px; box-sizing: border-box; }
+  .w720 { width: 720px; } .w360 { width: 360px; }
+  h2 { font-size: 12px; margin: 0 0 8px; color: var(--ink-2); font-weight: 600; }
+  pre#report { font: 11px/1.45 var(--font-mono); white-space: pre-wrap; margin: 0 0 16px; color: var(--ink); }
+  .stack > div + div { margin-top: 8px; }
+</style>
+</head>
+<body>
+<script>(function () { const m = /[?&]theme=(light|dark)/.exec(location.search); if (m) document.documentElement.setAttribute('data-theme', m[1]); })();</script>
+<pre id="report">rendering…</pre>
+<div class="card w720"><h2>720 px · n = 91 · goal 175 lb · kcal target 2,400 → null span → 2,400 → 2,200</h2><div class="stack"><div id="w1"></div><div id="i1"></div></div></div>
+<div class="card w360"><h2>360 px · n = 30</h2><div class="stack"><div id="w2"></div><div id="i2"></div></div></div>
+<div class="card w360"><h2>empty states: 0 points · 1 point · no logged days</h2><div class="stack"><div id="w0"></div><div id="w1p"></div><div id="i0"></div></div></div>
+<div class="card w720"><h2>perf · 2,000 daily points · All range</h2><div class="stack"><div id="wp"></div><div id="ip"></div></div></div>
+<script src="../core.js"></script>
+<script src="../charts.js"></script>
+<script>
+(function () {
+  'use strict';
+  const C = window.TareCore, K = window.TareCharts;
+  const out = [];
+  const log = (s) => out.push(s);
+  try {
+    // seeded PRNG (mulberry32) so every run draws the same picture
+    let seed = 20260912;
+    const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+
+    const today = C.todayKey();
+    const DAYS = 120;
+    const first = C.addDays(today, -(DAYS - 1));
+
+    // weights: 186 lb drifting down 0.08/day with ±0.8 noise; days 50–59 missing (10-day gap); 8% random misses
+    const byDate = {};
+    for (let i = 0; i < DAYS; i++) {
+      if (i >= 50 && i < 60) continue;
+      if (i !== DAYS - 1 && rnd() < 0.08) continue;
+      byDate[C.addDays(first, i)] = { v: Math.round((186 - 0.08 * i + (rnd() - 0.5) * 1.6) * 10) / 10, u: 'lb' };
+    }
+    const series = C.weightSeries(byDate, 'lb');
+    const trend = C.trend(series);
+    const sevenDayAvgByDate = {};
+    series.forEach((p) => { sevenDayAvgByDate[p.date] = C.sevenDayAvg(series, p.date); });
+
+    // kcal: 1,800–2,900 on ~85% of days; targets change inside the window and have a null span
+    const kcalByDate = {};
+    for (let i = 0; i < DAYS; i++) {
+      if (rnd() < 0.15) continue;
+      kcalByDate[C.addDays(first, i)] = Math.round(1800 + rnd() * 1100);
+    }
+    const targets = [
+      { from: C.addDays(first, -30), kcal: 2400 },
+      { from: C.addDays(today, -60), kcal: null },
+      { from: C.addDays(today, -50), kcal: 2400 },
+      { from: C.addDays(today, -20), kcal: 2200 },
+    ];
+    const targetFor = (d) => { const t = C.targetFor(targets, d); return t ? t.kcal : null; };
+    const status = (d, v, t) => (t != null && v > t ? 'over' : null);
+    const selected = [];
+
+    const range = (n) => ({ start: C.addDays(today, -(n - 1)), n, today });
+    const t0 = performance.now();
+    const w1 = K.weightChart(document.getElementById('w1'), Object.assign({ series, trend, unit: 'lb', goal: 175, kcalByDate, sevenDayAvgByDate, onSelect: (d) => selected.push('w1:' + d) }, range(91)));
+    const i1 = K.intakeChart(document.getElementById('i1'), Object.assign({ values: kcalByDate, metric: 'kcal', unitLabel: 'kcal', targetFor, status, onSelect: (d) => selected.push('i1:' + d) }, range(91)));
+    const w2 = K.weightChart(document.getElementById('w2'), Object.assign({ series, trend, unit: 'lb', goal: 175, kcalByDate, sevenDayAvgByDate, onSelect: (d) => selected.push('w2:' + d) }, range(30)));
+    const i2 = K.intakeChart(document.getElementById('i2'), Object.assign({ values: kcalByDate, metric: 'kcal', unitLabel: 'kcal', targetFor, status, onSelect: (d) => selected.push('i2:' + d) }, range(30)));
+    const t1 = performance.now();
+    log('render 2 pairs: ' + (t1 - t0).toFixed(1) + ' ms');
+
+    // empty states
+    K.weightChart(document.getElementById('w0'), Object.assign({ series: [], trend: [], unit: 'lb', goal: 175 }, range(30)));
+    const one = series[series.length - 1];
+    K.weightChart(document.getElementById('w1p'), Object.assign({ series: [one], trend: [one.v], unit: 'lb', goal: 175 }, range(30)));
+    K.intakeChart(document.getElementById('i0'), Object.assign({ values: {}, metric: 'protein', unitLabel: 'g', targetFor: () => 180, status: () => null }, range(30)));
+
+    // perf: 2,000 daily points, All range
+    const pByDate = {}, pKcal = {};
+    const pFirst = C.addDays(today, -1999);
+    for (let i = 0; i < 2000; i++) {
+      const k = C.addDays(pFirst, i);
+      pByDate[k] = { v: Math.round((90 + 6 * Math.sin(i / 90) + (rnd() - 0.5) * 1.2) * 10) / 10, u: 'kg' };
+      if (rnd() < 0.9) pKcal[k] = Math.round(1700 + rnd() * 1200);
+    }
+    const pSeries = C.weightSeries(pByDate, 'kg'), pTrend = C.trend(pSeries);
+    const all = C.rangeStart('All', today, pFirst);
+    const t2 = performance.now();
+    K.weightChart(document.getElementById('wp'), { series: pSeries, trend: pTrend, unit: 'kg', goal: 84, start: all.start, n: all.n, today, kcalByDate: pKcal, sevenDayAvgByDate: {} });
+    const t3 = performance.now();
+    K.intakeChart(document.getElementById('ip'), { values: pKcal, metric: 'kcal', unitLabel: 'kcal', targetFor: () => 2400, status, start: all.start, n: all.n, today });
+    const t4 = performance.now();
+    log('perf weight 2000 pts: ' + (t3 - t2).toFixed(1) + ' ms · intake ~1800 bars: ' + (t4 - t3).toFixed(1) + ' ms (n = ' + all.n + ')');
+
+    // update() and destroy() must not throw and must keep a single SVG in the container
+    const tmp = document.createElement('div'); tmp.style.width = '500px'; document.body.appendChild(tmp);
+    const h = K.weightChart(tmp, Object.assign({ series, trend, unit: 'lb' }, range(91)));
+    h.update(Object.assign({ unit: 'kg', series: C.weightSeries(byDate, 'kg'), trend: C.trend(C.weightSeries(byDate, 'kg')) }, range(182)));
+    const afterUpdate = tmp.querySelectorAll('svg').length + ' svg, aria="' + tmp.querySelector('svg').getAttribute('aria-label') + '"';
+    h.destroy();
+    log('update(): ' + afterUpdate + ' · destroy(): children=' + tmp.childNodes.length + ' class=' + JSON.stringify(tmp.className));
+    document.body.removeChild(tmp);
+
+    const describe = (id) => {
+      const c = document.getElementById(id), svg = c.querySelector('svg');
+      const q = (s) => svg.querySelectorAll(s).length;
+      return id + ': circles=' + q('circle') + ' paths=' + q('path') + ' dashed=' + q('.tc-trend-gap') + ' bars=' + q('.tc-bar') +
+        ' (over=' + q('.tc-bar.is-over') + ') xticks=' + q('.tc-xtick') + ' yticks=' + q('.tc-ytick') + ' goal=' + q('.tc-goal-label') +
+        ' target=' + q('.tc-target') + ' viewBox="' + svg.getAttribute('viewBox') + '" cssW=' + Math.round(svg.getBoundingClientRect().width) +
+        '\n    aria="' + svg.getAttribute('aria-label') + '"';
+    };
+    const probe = (id, type, fx, fy) => {
+      const c = document.getElementById(id), ov = c.querySelector('.tc-overlay');
+      if (!ov) return id + ': no overlay';
+      const r = ov.getBoundingClientRect();
+      const x = r.left + r.width * (fx == null ? 0.5 : fx), y = r.top + r.height * (fy == null ? 0.5 : fy);
+      ov.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: y, bubbles: true, pointerType: type }));
+      const tip = c.querySelector('.chart-tip');
+      return id + ' ' + type + ' @' + Math.round(fx == null ? 50 : fx * 100) + '%: tip=' + JSON.stringify(tip.textContent) + ' hidden=' + tip.hidden +
+        ' left=' + tip.style.left + ' top=' + tip.style.top + ' wrap=' + tip.classList.contains('is-wrap');
+    };
+    const click = (id, fx) => {
+      const c = document.getElementById(id), ov = c.querySelector('.tc-overlay');
+      const r = ov.getBoundingClientRect();
+      ov.dispatchEvent(new MouseEvent('click', { clientX: r.left + r.width * fx, clientY: r.top + r.height / 2, bubbles: true }));
+    };
+
+    ['w1', 'i1', 'w2', 'i2', 'w0', 'w1p', 'i0', 'wp', 'ip'].forEach((id) => log(describe(id)));
+    log(probe('w1', 'mouse'));
+    log(probe('i1', 'mouse'));
+    log(probe('w2', 'mouse', 0.5));            // 360 px: expect segment wrapping
+    log(probe('i2', 'touch', 0.95, 0.4));      // touch near the right edge: centred, above the finger
+    log(probe('w1p', 'mouse'));
+    click('w1', 0.3); click('i1', 0.98);
+    log('onSelect: ' + JSON.stringify(selected));
+    // put w1 tooltip back in a screenshot-friendly place (right-edge flip check)
+    log(probe('w1', 'mouse', 0.97, 0.3));
+    log(probe('i1', 'mouse', 0.02, 0.5));
+    log('css injected: ' + !!document.getElementById('tare-charts-css') + ' · prefers-dark: ' + matchMedia('(prefers-color-scheme: dark)').matches +
+      ' · data-theme: ' + (document.documentElement.getAttribute('data-theme') || '(none)') +
+      ' · --accent resolves to ' + getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+  } catch (e) {
+    log('ERROR: ' + (e && e.stack || e));
+  }
+  document.getElementById('report').textContent = out.join('\n');
+})();
+</script>
+</body>
+</html>

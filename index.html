@@ -1,0 +1,103 @@
+<meta charset="utf-8">
+<title>Tare</title>
+<meta name="description" content="Tare — a food-scale ledger for daily calories, macros and body weight.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+
+<div id="app" class="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">Tare</span><span class="brand-sub">food-scale ledger</span></div>
+    <nav class="nav nav-top" aria-label="Sections">
+      <button class="nav-btn on" data-screen="today" type="button">Today</button>
+      <button class="nav-btn" data-screen="foods" type="button">Foods</button>
+      <button class="nav-btn" data-screen="progress" type="button">Progress</button>
+      <button class="nav-btn" data-screen="settings" type="button">Settings</button>
+    </nav>
+    <div id="sync" class="sync"><span class="sync-dot"></span><span id="sync-text">Connecting…</span></div>
+  </header>
+
+  <div id="banners" class="banners" aria-live="polite"></div>
+
+  <main id="main" class="main">
+    <section id="screen-today" class="screen today" aria-label="Today">
+      <div class="daybar">
+        <button id="day-prev" class="icon-btn" type="button" aria-label="Previous day">‹</button>
+        <button id="day-label" class="daybar-label" type="button" aria-label="Pick a date">…</button>
+        <input id="day-input" type="date" aria-label="Date" tabindex="-1">
+        <button id="day-next" class="icon-btn" type="button" aria-label="Next day">›</button>
+        <span id="day-rel" class="daybar-rel"></span>
+        <button id="day-today" class="btn btn-ghost btn-sm" type="button" hidden>Today</button>
+      </div>
+      <div class="side">
+        <div id="tiles" class="tiles" aria-label="Daily totals" title="Tap for exact totals"></div>
+        <div id="tiles-detail" class="tiles-detail" hidden></div>
+        <div id="weightbox" class="weightbox" aria-label="Body weight"></div>
+      </div>
+      <div id="addbox" class="addbox">
+        <div class="addbox-search">
+          <input id="search" type="text" role="combobox" disabled placeholder="Add food… (type a name)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" aria-label="Add food" aria-autocomplete="list" aria-expanded="false" aria-controls="dropdown">
+          <div id="dropdown" class="dropdown" role="listbox" hidden></div>
+        </div>
+        <div id="pickbox" class="pickbox" hidden></div>
+      </div>
+      <div id="chips" class="chips" aria-label="Frequent foods"></div>
+      <div id="entries" class="entries" aria-label="Logged foods"></div>
+      <div id="day-links" class="day-links"></div>
+    </section>
+
+    <section id="screen-foods" class="screen" aria-label="Foods" hidden>
+      <div class="foods-head">
+        <input id="food-search" type="text" placeholder="Search foods…" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="go" aria-label="Search foods">
+        <div id="food-filter" class="seg" role="group" aria-label="Filter">
+          <button type="button" data-f="all" class="on">All</button>
+          <button type="button" data-f="fav">Favorites</button>
+          <button type="button" data-f="meals">Meals</button>
+          <button type="button" data-f="archived">Archived</button>
+        </div>
+        <select id="food-sort" aria-label="Sort">
+          <option value="name">Name</option>
+          <option value="used">Most used</option>
+        </select>
+        <button id="food-new" class="btn btn-primary" type="button">+ New food</button>
+      </div>
+      <div id="food-list" class="food-list"></div>
+    </section>
+
+    <section id="screen-progress" class="screen" aria-label="Progress" hidden>
+      <div class="range-row">
+        <div id="range" class="seg" role="group" aria-label="Range"></div>
+        <span id="unit-label" class="muted small"></span>
+      </div>
+      <div id="stats" class="stats"></div>
+      <div id="weight-chart" class="chart"></div>
+      <div class="section-head"><h2>Intake</h2><div id="intake-metric" class="seg" role="group" aria-label="Metric"></div></div>
+      <div id="intake-chart" class="chart chart-sm"></div>
+      <div class="section-head"><h2>Weekly</h2></div>
+      <div id="weekly" class="table-wrap"></div>
+      <div class="section-head"><h2>Weigh-ins</h2></div>
+      <div id="weight-table" class="table-wrap"></div>
+    </section>
+
+    <section id="screen-settings" class="screen" aria-label="Settings" hidden>
+      <div id="settings-root" class="settings"></div>
+    </section>
+  </main>
+
+  <nav class="nav nav-bottom" aria-label="Sections">
+    <button class="nav-btn on" data-screen="today" type="button">Today</button>
+    <button class="nav-btn" data-screen="foods" type="button">Foods</button>
+    <button class="nav-btn" data-screen="progress" type="button">Progress</button>
+    <button class="nav-btn" data-screen="settings" type="button">Settings</button>
+  </nav>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="modal-root"></div>
+</div>
+
+<script src="core.js"></script>
+<script src="store.js"></script>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+<script src="screens.js"></script>
